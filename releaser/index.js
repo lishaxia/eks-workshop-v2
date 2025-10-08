@@ -1,3 +1,4 @@
+// Release automation script for EKS Workshop
 import { Octokit } from "@octokit/rest";
 import fs from "fs/promises";
 
