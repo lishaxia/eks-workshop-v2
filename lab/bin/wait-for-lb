@@ -5,22 +5,32 @@ export host=$1
 set -Eeuo pipefail
 
 if [ -z "$host" ]; then
-  echo "Host was not provided, please ensure load balancer has been created successfully."
+  echo "Error: Host was not provided, please ensure load balancer has been created successfully."
   exit 1
 fi
 
-echo "Waiting for ${host}..."
+echo "Waiting for ${host} to become available..."
 
 EXIT_CODE=0
+RETRY_COUNT=0
+MAX_RETRIES=120  # 10 minutes with 5-second intervals
 
 timeout -s TERM 600 bash -c \
-  'while [[ "$(curl -s -o /dev/null -L -w ''%{http_code}'' ${host}/home)" != "200" ]];\
-  do sleep 5;\
+  'while [[ "$(curl -s -o /dev/null -L -w ''%{http_code}'' ${host}/home)" != "200" ]]; do 
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $((RETRY_COUNT % 12)) -eq 0 ]; then
+      echo "Still waiting... (${RETRY_COUNT}/120 attempts)"
+    fi
+    sleep 5
   done' || EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
-  echo "Load balancer did not become available or return HTTP 200 for 600 seconds"
+  echo "Error: Load balancer did not become available or return HTTP 200 within 600 seconds"
+  echo "Please check:"
+  echo "  - Load balancer configuration"
+  echo "  - Security group settings"
+  echo "  - Target group health"
   exit 1
 fi
 
-echo "You can now access http://${host}"
+echo "Success: Load balancer is now available at http://${host}"
